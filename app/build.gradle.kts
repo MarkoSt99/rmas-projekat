@@ -77,6 +77,10 @@ dependencies {
     // Firebase Firestore (for database functionality)
     implementation("com.google.firebase:firebase-firestore-ktx:24.6.0")
 
+    implementation("androidx.compose.material:material-icons-extended:1.5.0")
+
+    implementation("io.coil-kt:coil-compose:2.1.0")
+
     // Other dependencies
     implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)

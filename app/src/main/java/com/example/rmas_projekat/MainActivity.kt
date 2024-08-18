@@ -3,8 +3,11 @@ package com.example.rmas_projekat
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.rmas_projekat.ui.navigation.SetupNavGraph
@@ -20,41 +23,54 @@ class MainActivity : ComponentActivity() {
         auth = FirebaseAuth.getInstance()  // Initialize FirebaseAuth
         setContent {
             RmasProjekatTheme {
-                Surface(color = MaterialTheme.colorScheme.background) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
                     navController = rememberNavController()
-                    SetupNavGraph(navController, auth)
+
+                    // Set up the navigation graph
+                    SetupNavGraph(navController = navController, auth = auth)
+
+                    // Check if the user is already logged in
+                    LaunchedEffect(auth.currentUser) {
+                        if (auth.currentUser != null) {
+                            // If the user is logged in, navigate directly to the home screen
+                            navController.navigate("home") {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    inclusive = true
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
+    // Optionally, keep the lifecycle methods if needed for specific actions
+
     override fun onStart() {
         super.onStart()
-        // Handle any necessary logic when activity is starting
     }
 
     override fun onResume() {
         super.onResume()
-        // Handle any necessary logic when activity is resuming
     }
 
     override fun onPause() {
         super.onPause()
-        // Handle any necessary logic when activity is pausing
     }
 
     override fun onStop() {
         super.onStop()
-        // Handle any necessary logic when activity is stopping
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // Handle any necessary logic when activity is destroyed
     }
 
     override fun onRestart() {
         super.onRestart()
-        // Handle any necessary logic when activity is restarting
     }
 }
