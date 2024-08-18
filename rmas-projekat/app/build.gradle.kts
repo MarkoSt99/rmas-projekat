@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsKotlinAndroid)
-    kotlin("plugin.serialization") version "1.9.0" // Optional
+    //kotlin("plugin.serialization") version "1.9.0" // Optional
     id("com.google.gms.google-services")
 }
 
@@ -55,7 +55,7 @@ dependencies {
 
     // Jetpack Compose
     implementation("androidx.compose.ui:ui:1.5.0")
-    implementation("androidx.compose.material:material:1.6.8")
+    implementation("androidx.compose.material:material:1.5.0")
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.0")
     implementation("androidx.activity:activity-compose:1.7.2")
 
