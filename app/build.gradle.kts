@@ -43,6 +43,7 @@ android {
     buildFeatures {
         compose = true
         viewBinding = true
+        //noinspection DataBindingWithoutKapt
         dataBinding = true
     }
 }
@@ -54,32 +55,33 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
 
     // Jetpack Compose
-    implementation("androidx.compose.ui:ui:1.5.0")
-    implementation("androidx.compose.material:material:1.6.8")
-    implementation("androidx.compose.ui:ui-tooling-preview:1.5.0")
-    implementation("androidx.activity:activity-compose:1.7.2")
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.material)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.activity.compose)
 
     // For ViewModel integration with Compose
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
 
     // For Navigation integration with Compose
-    implementation("androidx.navigation:navigation-compose:2.7.2")
-    implementation("androidx.navigation:navigation-fragment-ktx:2.7.2")
-    implementation("androidx.navigation:navigation-ui-ktx:2.7.2")
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.navigation.fragment.ktx.v277)
+    implementation(libs.androidx.navigation.ui.ktx.v277)
 
     // Firebase Authentication
-    implementation("com.google.firebase:firebase-auth-ktx:22.1.1")
-    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22")
-    implementation("com.google.firebase:firebase-storage-ktx:20.2.0")
+    implementation(libs.firebase.auth.ktx)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlin.stdlib.jdk8)
+    implementation(libs.firebase.storage.ktx)
 
     // Firebase Firestore (for database functionality)
-    implementation("com.google.firebase:firebase-firestore-ktx:24.6.0")
+    implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.firestore.ktx)
 
-    implementation("androidx.compose.material:material-icons-extended:1.5.0")
+    implementation(libs.androidx.material.icons.extended)
 
-    implementation("io.coil-kt:coil-compose:2.1.0")
+    implementation(libs.coil.compose)
 
     // Other dependencies
     implementation(libs.androidx.lifecycle.livedata.ktx)
@@ -89,6 +91,6 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.5.0")
-    debugImplementation("androidx.compose.ui:ui-tooling:1.5.0")
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.tooling)
 }

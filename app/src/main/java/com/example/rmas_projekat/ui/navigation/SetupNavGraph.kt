@@ -8,7 +8,8 @@ import com.example.rmas_projekat.ui.auth.LoginScreen
 import com.example.rmas_projekat.ui.auth.RegisterScreen
 import com.example.rmas_projekat.ui.screens.*
 import com.example.rmas_projekat.ui.home.HomeScreen
-import com.example.rmas_projekat.ui.profile.YouScreen
+import com.example.rmas_projekat.ui.profile.EditProfileScreen
+import com.example.rmas_projekat.ui.profile.ProfileScreen
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -17,7 +18,7 @@ import com.google.firebase.storage.FirebaseStorage
 fun SetupNavGraph(navController: NavHostController, auth: FirebaseAuth) {
     NavHost(navController = navController, startDestination = "login") {
         composable("register") {
-            RegisterScreen(navController = navController, auth = auth)
+            RegisterScreen(navController = navController, auth = auth, storage = FirebaseStorage.getInstance())
         }
         composable("login") {
             LoginScreen(navController = navController, auth = auth)
@@ -34,9 +35,13 @@ fun SetupNavGraph(navController: NavHostController, auth: FirebaseAuth) {
         composable("groups") {
             GroupsScreen(navController = navController, auth = auth)
         }
-        composable("you") {
-            YouScreen(navController = navController, auth = auth, firestore = FirebaseFirestore.getInstance(), storage = FirebaseStorage.getInstance())
+        composable("profile") {
+            ProfileScreen(navController = navController,auth = auth, storage = FirebaseStorage.getInstance())
         }
+        composable("editProfile") {
+            EditProfileScreen(navController = navController, auth = auth, storage = FirebaseStorage.getInstance(), firestore = FirebaseFirestore.getInstance())
+        }
+
 
     }
 }
