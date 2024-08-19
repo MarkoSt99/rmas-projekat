@@ -1,14 +1,16 @@
 package com.example.rmas_projekat.ui.navigation
 
+//noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.BottomNavigation
+//noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.BottomNavigationItem
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.example.rmas_projekat.ui.navigation.BottomNavItem
 
 @Composable
 fun BottomNavigationBar(navController: NavController) {
@@ -17,7 +19,7 @@ fun BottomNavigationBar(navController: NavController) {
         BottomNavItem.Maps,
         BottomNavItem.Record,
         BottomNavItem.Groups,
-        BottomNavItem.You
+        BottomNavItem.Profile
     )
     BottomNavigation(
         backgroundColor = MaterialTheme.colorScheme.primary,

@@ -13,14 +13,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.userProfileChangeRequest
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-import java.util.*
 
 @Composable
-fun RegisterScreen(navController: NavController, auth: FirebaseAuth) {
+fun RegisterScreen(navController: NavController, auth: FirebaseAuth, storage: FirebaseStorage) {
+    val firestore = FirebaseFirestore.getInstance() // Firestore instance
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -106,23 +108,59 @@ fun RegisterScreen(navController: NavController, auth: FirebaseAuth) {
                             if (task.isSuccessful) {
                                 val user = auth.currentUser
                                 val userId = user?.uid ?: ""
-                                val storageRef = FirebaseStorage.getInstance().reference
-                                    .child("userPhotos/$userId.jpg")
 
-                                userPhoto?.let {
-                                    storageRef.putFile(it)
-                                        .addOnSuccessListener {
-                                            // Photo uploaded successfully, now you can add user info to the database
-                                            Toast.makeText(context, "Registration Successful", Toast.LENGTH_SHORT).show()
-                                            navController.navigate("login")
+                                // Set the display name
+                                val profileUpdates = userProfileChangeRequest {
+                                    displayName = fullName
+                                }
+
+                                user?.updateProfile(profileUpdates)?.addOnCompleteListener { profileTask ->
+                                    if (profileTask.isSuccessful) {
+                                        // Upload the photo to Firebase Storage
+                                        val storageRef = storage.reference.child("userPhotos/$userId.jpg")
+                                        userPhoto?.let {
+                                            storageRef.putFile(it)
+                                                .addOnSuccessListener {
+                                                    // Save additional user data in Firestore
+                                                    val userData = hashMapOf(
+                                                        "fullName" to fullName,
+                                                        "phoneNumber" to phoneNumber,
+                                                        "email" to email,
+                                                        "photoUrl" to storageRef.path
+                                                    )
+                                                    firestore.collection("users").document(userId)
+                                                        .set(userData)
+                                                        .addOnSuccessListener {
+                                                            Toast.makeText(context, "Registration Successful", Toast.LENGTH_SHORT).show()
+                                                            navController.navigate("login")
+                                                        }
+                                                        .addOnFailureListener { e ->
+                                                            Toast.makeText(context, "Error saving user data: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                }
+                                                .addOnFailureListener {
+                                                    Toast.makeText(context, "Photo Upload Failed", Toast.LENGTH_SHORT).show()
+                                                }
+                                        } ?: run {
+                                            // Save additional user data without photo
+                                            val userData = hashMapOf(
+                                                "fullName" to fullName,
+                                                "phoneNumber" to phoneNumber,
+                                                "email" to email
+                                            )
+                                            firestore.collection("users").document(userId)
+                                                .set(userData)
+                                                .addOnSuccessListener {
+                                                    Toast.makeText(context, "Registration Successful", Toast.LENGTH_SHORT).show()
+                                                    navController.navigate("login")
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    Toast.makeText(context, "Error saving user data: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                }
                                         }
-                                        .addOnFailureListener {
-                                            Toast.makeText(context, "Photo Upload Failed", Toast.LENGTH_SHORT).show()
-                                        }
-                                } ?: run {
-                                    // If no photo is selected, proceed with registration
-                                    Toast.makeText(context, "Registration Successful", Toast.LENGTH_SHORT).show()
-                                    navController.navigate("login")
+                                    } else {
+                                        Toast.makeText(context, "Failed to update profile: ${profileTask.exception?.message}", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             } else {
                                 Toast.makeText(context, "Registration Failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
