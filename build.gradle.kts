@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.androidApplication) apply false
     alias(libs.plugins.jetbrainsKotlinAndroid) apply false
     id("com.google.gms.google-services") version "4.4.2" apply false
+
 }
 
 buildscript {
@@ -14,5 +15,6 @@ buildscript {
         classpath("com.android.tools.build:gradle:8.5.2")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0")
         classpath("com.google.gms:google-services:4.3.15")
+        classpath("com.google.android.libraries.mapsplatform.secrets-gradle-plugin:secrets-gradle-plugin:2.0.1")
     }
 }

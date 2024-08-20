@@ -8,6 +8,7 @@ import com.example.rmas_projekat.ui.auth.LoginScreen
 import com.example.rmas_projekat.ui.auth.RegisterScreen
 import com.example.rmas_projekat.ui.screens.*
 import com.example.rmas_projekat.ui.home.HomeScreen
+import com.example.rmas_projekat.ui.maps.MapsScreen
 import com.example.rmas_projekat.ui.profile.EditProfileScreen
 import com.example.rmas_projekat.ui.profile.ProfileScreen
 import com.google.firebase.auth.FirebaseAuth
@@ -27,7 +28,7 @@ fun SetupNavGraph(navController: NavHostController, auth: FirebaseAuth) {
             HomeScreen(navController = navController, auth = auth)
         }
         composable("maps") {
-            MapsScreen(navController = navController, auth = auth)
+            MapsScreen(navController = navController, auth=auth)
         }
         composable("record") {
             RecordScreen(navController = navController, auth = auth)
