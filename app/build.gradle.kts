@@ -95,7 +95,7 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
 
-
+    implementation ("com.google.android.gms:play-services-maps:18.1.0")
 
     implementation(libs.play.services.maps)
     implementation(libs.play.services.location)
