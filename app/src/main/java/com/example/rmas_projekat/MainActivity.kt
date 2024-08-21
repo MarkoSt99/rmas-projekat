@@ -48,29 +48,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Optionally, keep the lifecycle methods if needed for specific actions
-
-    override fun onStart() {
-        super.onStart()
-    }
-
-    override fun onResume() {
-        super.onResume()
-    }
-
-    override fun onPause() {
-        super.onPause()
-    }
-
-    override fun onStop() {
-        super.onStop()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-    }
-
-    override fun onRestart() {
-        super.onRestart()
-    }
+    // Lifecycle methods (if needed)
+    override fun onStart() { super.onStart() }
+    override fun onResume() { super.onResume() }
+    override fun onPause() { super.onPause() }
+    override fun onStop() { super.onStop() }
+    override fun onDestroy() { super.onDestroy() }
+    override fun onRestart() { super.onRestart() }
 }

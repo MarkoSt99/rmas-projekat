@@ -78,28 +78,26 @@ dependencies {
 
     // Firebase Firestore (for database functionality)
     implementation(libs.firebase.firestore.ktx)
-    implementation(libs.firebase.firestore.ktx)
 
     implementation(libs.androidx.material.icons.extended)
 
+    // Image loading library
     implementation(libs.coil.compose)
 
     // Other dependencies
     implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.material3.android)
-    implementation(libs.firebase.firestore)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
 
-
-
     implementation(libs.play.services.maps)
     implementation(libs.play.services.location)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.accompanist.permissions)
     implementation(libs.maps.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 }
