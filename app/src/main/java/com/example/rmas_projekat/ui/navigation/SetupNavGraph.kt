@@ -61,22 +61,22 @@ fun SetupNavGraph(navController: NavHostController, auth: FirebaseAuth) {
                         if (document != null) {
                             val geoPoint = document.getGeoPoint("location")
                             val name = document.getString("name") ?: ""
-                            val type = document.getString("type") ?: ""
                             val description = document.getString("description") ?: ""
                             val icon = document.getLong("icon")?.toInt() ?: R.drawable.default_pin
                             val imageUri = document.getString("imageUri")
                             val creatorId = document.getString("creatorId") ?: ""
+                            val category = document.getString("category") ?: "" // Add this line
 
                             if (geoPoint != null) {
                                 mapObject.value = MapObject(
                                     id = document.id,
                                     name = name,
-                                    type = type,
                                     description = description,
                                     location = LatLng(geoPoint.latitude, geoPoint.longitude),
                                     icon = icon,
                                     imageUri = imageUri,
-                                    creatorId = creatorId // Make sure to include creatorId
+                                    creatorId = creatorId,
+                                    category = category // Add this line to the MapObject
                                 )
                             }
                         }
@@ -91,5 +91,6 @@ fun SetupNavGraph(navController: NavHostController, auth: FirebaseAuth) {
                 }
             }
         }
+
     }
 }

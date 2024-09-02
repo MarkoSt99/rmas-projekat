@@ -28,38 +28,13 @@ import kotlinx.coroutines.sync.withLock
 fun AddObjectDialog(
     currentLocation: LatLng?,
     onDismiss: () -> Unit,
-    onSave: (String, String, String, Int, Uri?) -> Unit,
-    onAddCategory: (String) -> Unit
+    onSave: (String, String, String, Int, Uri?) -> Unit
 ) {
     var objectName by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("") }  // Use a simple text box for category
     var objectDescription by remember { mutableStateOf("") }
     var selectedIcon by remember { mutableStateOf(R.drawable.default_pin) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
-    var expanded by remember { mutableStateOf(false) }
-    var showAddCategoryDialog by remember { mutableStateOf(false) }
-    var newCategoryName by remember { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
-    val firestore = FirebaseFirestore.getInstance()
-    val mutex = Mutex()
-    var categories by remember { mutableStateOf(listOf<String>()) }
-
-    // Fetch categories from Firestore
-    LaunchedEffect(Unit) {
-        firestore.collection("categories")
-            .get()
-            .addOnSuccessListener { result ->
-                categories = result.documents.mapNotNull { it.getString("name") }
-                if (categories.isNotEmpty()) {
-                    selectedCategory = categories.first()
-                }
-            }
-            .addOnFailureListener { exception ->
-                Log.e("AddObjectDialog", "Error getting categories", exception)
-            }
-    }
-
-    // Image picker launcher
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
         onResult = { uri: Uri? -> imageUri = uri }
@@ -77,42 +52,13 @@ fun AddObjectDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = selectedCategory,
-                        onValueChange = { /* No-op */ },
-                        label = { Text("Object Type") },
-                        modifier = Modifier.fillMaxWidth(),
-                        readOnly = true,
-                        trailingIcon = {
-                            IconButton(onClick = { expanded = !expanded }) {
-                                Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = null)
-                            }
-                        }
-                    )
-
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        categories.forEach { category ->
-                            DropdownMenuItem(
-                                text = { Text(category) },
-                                onClick = {
-                                    selectedCategory = category
-                                    expanded = false
-                                }
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text("+ Add New Object Type/Category") },
-                            onClick = {
-                                showAddCategoryDialog = true
-                                expanded = false
-                            }
-                        )
-                    }
-                }
+                // Simple text field for category
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    label = { Text("Category") },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
                 OutlinedTextField(
                     value = objectDescription,
@@ -132,7 +78,7 @@ fun AddObjectDialog(
         },
         confirmButton = {
             Button(onClick = {
-                onSave(objectName, selectedCategory, objectDescription, selectedIcon, imageUri)
+                onSave(objectName, category, objectDescription, selectedIcon, imageUri)
             }) {
                 Text("Save")
             }
@@ -143,67 +89,8 @@ fun AddObjectDialog(
             }
         }
     )
-
-    // Add category dialog if showAddCategoryDialog is true
-    if (showAddCategoryDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddCategoryDialog = false },
-            title = { Text("Add New Category") },
-            text = {
-                OutlinedTextField(
-                    value = newCategoryName,
-                    onValueChange = { newCategoryName = it },
-                    label = { Text("Category Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            mutex.withLock {
-                                val newCategory = newCategoryName.trim()
-
-                                if (newCategory.isNotEmpty()) {
-                                    try {
-                                        Log.d("AddObjectDialog", "Checking if category already exists: $newCategory")
-                                        val categoryDocRef = firestore.collection("categories").document(newCategory)
-                                        val existingCategoryDoc = categoryDocRef.get().await()
-
-                                        if (!existingCategoryDoc.exists()) {
-                                            Log.d("AddObjectDialog", "Category doesn't exist, adding: $newCategory")
-                                            categoryDocRef.set(mapOf("name" to newCategory)).await()
-                                            Log.d("AddObjectDialog", "Category added successfully: $newCategory")
-                                            categories = categories + newCategory
-                                            selectedCategory = newCategory
-                                            onAddCategory(newCategory)
-                                        } else {
-                                            Log.d("AddObjectDialog", "Category already exists: $newCategory")
-                                            selectedCategory = newCategory
-                                            onAddCategory(newCategory)
-                                        }
-                                        showAddCategoryDialog = false
-                                    } catch (e: Exception) {
-                                        Log.e("AddObjectDialog", "Error during category check/add", e)
-                                    }
-                                } else {
-                                    Log.w("AddObjectDialog", "Attempted to add an empty category")
-                                }
-                            }
-                        }
-                    }
-                ) {
-                    Text("Add Category")
-                }
-            },
-            dismissButton = {
-                Button(onClick = { showAddCategoryDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 }
+
 
 @Composable
 fun IconPicker(selectedIcon: Int, onIconSelected: (Int) -> Unit) {

@@ -1,25 +1,21 @@
 package com.example.rmas_projekat.ui.maps
 
+import android.util.Log
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.location.Location
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.example.rmas_projekat.R
 import com.example.rmas_projekat.ui.navigation.BottomNavigationBar
@@ -37,7 +33,7 @@ import com.google.firebase.firestore.GeoPoint
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
     val context = LocalContext.current
@@ -45,7 +41,6 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
     val firestore = FirebaseFirestore.getInstance()
     val scope = rememberCoroutineScope()
 
-    // Permissions
     val locationPermissionState = rememberMultiplePermissionsState(
         permissions = listOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -58,79 +53,72 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
     var showDialog by remember { mutableStateOf(false) }
     var mapObjects by remember { mutableStateOf(listOf<MapObject>()) }
     var filteredObjects by remember { mutableStateOf(listOf<MapObject>()) }
-    var categories by remember { mutableStateOf(listOf<String>()) } // Categories list
-    var creators by remember { mutableStateOf(listOf<String>()) } // Creators list
+    var categories by remember { mutableStateOf(listOf<String>()) }
+    var creators by remember { mutableStateOf(listOf<String>()) }
     var selectedCategory by remember { mutableStateOf("") }
     var selectedCreator by remember { mutableStateOf("") }
     var searchQuery by remember { mutableStateOf("") }
 
-    // Dropdown expanded states
     var isCategoryDropdownExpanded by remember { mutableStateOf(false) }
     var isCreatorDropdownExpanded by remember { mutableStateOf(false) }
 
-    // Load categories and creators from Firestore
-    fun loadCategoriesAndCreators() {
-        firestore.collection("categories").get().addOnSuccessListener { snapshot ->
-            categories = snapshot.documents.mapNotNull { it.getString("name") }
-        }
-
-        firestore.collection("objects").get().addOnSuccessListener { snapshot ->
-            creators = snapshot.documents.mapNotNull { it.getString("creatorId") }.distinct()
-        }
-    }
-
-    // Initial load
-    LaunchedEffect(Unit) {
-        loadCategoriesAndCreators()
-    }
-
-    // Apply filters whenever filter values change
-    LaunchedEffect(selectedCategory, selectedCreator, searchQuery) {
-        filteredObjects = mapObjects.filter {
-            (selectedCategory.isEmpty() || it.type == selectedCategory) &&
-                    (selectedCreator.isEmpty() || it.creatorId == selectedCreator) &&
-                    (searchQuery.isEmpty() || it.name.contains(searchQuery, ignoreCase = true))
-        }
-    }
-
-    // Load objects from Firestore
     LaunchedEffect(Unit) {
         firestore.collection("objects").addSnapshotListener { snapshot, error ->
             if (error == null && snapshot != null) {
                 mapObjects = snapshot.documents.mapNotNull { document ->
                     val geoPoint = document.getGeoPoint("location")
                     val name = document.getString("name")
-                    val type = document.getString("type")
                     val description = document.getString("description")
                     val icon = document.getLong("icon")?.toInt() ?: R.drawable.default_pin
                     val imageUri = document.getString("imageUri")
                     val creatorId = document.getString("creatorId")
-                    if (geoPoint != null && name != null && type != null && description != null && creatorId != null) {
+                    val category = document.getString("category").orEmpty()
+
+                    if (geoPoint != null && name != null && description != null && creatorId != null) {
                         MapObject(
                             id = document.id,
                             name = name,
-                            type = type,
                             description = description,
                             location = LatLng(geoPoint.latitude, geoPoint.longitude),
                             icon = icon,
                             imageUri = imageUri,
-                            creatorId = creatorId
+                            creatorId = creatorId,
+                            category = category
                         )
                     } else {
                         null
                     }
                 }
-                filteredObjects = mapObjects // Initially, show all objects
+                categories = mapObjects.map { it.category }.distinct()
+                creators = mapObjects.map { it.creatorId }.distinct()
+                filteredObjects = mapObjects.sortedBy { it.category }
             }
         }
     }
 
-    // Camera position state
+    LaunchedEffect(selectedCategory, selectedCreator, searchQuery) {
+        // Filtering logic
+        filteredObjects = mapObjects.filter { mapObject ->
+            val matchesCategory = selectedCategory.isEmpty() || mapObject.category.equals(selectedCategory.trim(), ignoreCase = true)
+            val matchesCreator = selectedCreator.isEmpty() || mapObject.creatorId == selectedCreator
+            val matchesSearchQuery = searchQuery.isEmpty() || mapObject.name.contains(searchQuery, ignoreCase = true)
+
+            matchesCategory && matchesCreator && matchesSearchQuery
+        }.sortedBy { it.category }
+
+        // Log filtered objects to ensure correct filtering
+        filteredObjects.forEach { obj ->
+            Log.d("MapsScreen", "Filtered Object: ${obj.name}, Category: ${obj.category}, Location: ${obj.location.latitude}, ${obj.location.longitude}")
+        }
+    }
+
+
+
+
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(currentLocation ?: LatLng(0.0, 0.0), 15f)
     }
 
-    // Get current location
     LaunchedEffect(locationPermissionState.allPermissionsGranted) {
         if (locationPermissionState.allPermissionsGranted) {
             if (ContextCompat.checkSelfPermission(
@@ -153,7 +141,6 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
         }
     }
 
-    // Update camera position when the current location changes
     LaunchedEffect(currentLocation) {
         currentLocation?.let {
             cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 15f))
@@ -163,8 +150,7 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                loadCategoriesAndCreators() // Refresh categories and creators when the dialog is opened
-                selectedLocation = currentLocation // Set the selected location to current location
+                selectedLocation = currentLocation
                 showDialog = true
             }) {
                 Icon(Icons.Filled.Add, contentDescription = "Add Object")
@@ -175,7 +161,6 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
         }
     ) { paddingValues ->
         Column(modifier = Modifier.padding(paddingValues)) {
-            // Search Bar in the first row
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -187,30 +172,28 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Category and Creator Dropdowns in the second row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Category Filter
-                Box(modifier = Modifier.weight(1f)) {
+                ExposedDropdownMenuBox(
+                    expanded = isCategoryDropdownExpanded,
+                    onExpandedChange = { isCategoryDropdownExpanded = !isCategoryDropdownExpanded },
+                    modifier = Modifier.weight(1f)
+                ) {
                     OutlinedTextField(
-                        value = if (selectedCategory.isEmpty()) "All Categories" else selectedCategory,
+                        value = selectedCategory.ifEmpty { "All Categories" },
                         onValueChange = { /* No-op */ },
                         label = { Text("Category") },
-                        modifier = Modifier
-                            .clickable { isCategoryDropdownExpanded = true },
                         readOnly = true,
                         trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Expand Categories"
-                            )
-                        }
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCategoryDropdownExpanded)
+                        },
+                        modifier = Modifier.menuAnchor()
                     )
-                    DropdownMenu(
+                    ExposedDropdownMenu(
                         expanded = isCategoryDropdownExpanded,
                         onDismissRequest = { isCategoryDropdownExpanded = false }
                     ) {
@@ -225,33 +208,34 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                             DropdownMenuItem(
                                 text = { Text(category) },
                                 onClick = {
-                                    selectedCategory = category
+                                    selectedCategory = category.trim()  // Ensure no leading/trailing spaces
                                     isCategoryDropdownExpanded = false
+                                    Log.d("MapsScreen", "Selected Category: $selectedCategory")
                                 }
                             )
+
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Creator Filter
-                Box(modifier = Modifier.weight(1f)) {
+                ExposedDropdownMenuBox(
+                    expanded = isCreatorDropdownExpanded,
+                    onExpandedChange = { isCreatorDropdownExpanded = !isCreatorDropdownExpanded },
+                    modifier = Modifier.weight(1f)
+                ) {
                     OutlinedTextField(
-                        value = if (selectedCreator.isEmpty()) "All Creators" else selectedCreator,
+                        value = selectedCreator.ifEmpty { "All Creators" },
                         onValueChange = { /* No-op */ },
                         label = { Text("Creator") },
-                        modifier = Modifier
-                            .clickable { isCreatorDropdownExpanded = true },
                         readOnly = true,
                         trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Expand Creators"
-                            )
-                        }
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCreatorDropdownExpanded)
+                        },
+                        modifier = Modifier.menuAnchor()
                     )
-                    DropdownMenu(
+                    ExposedDropdownMenu(
                         expanded = isCreatorDropdownExpanded,
                         onDismissRequest = { isCreatorDropdownExpanded = false }
                     ) {
@@ -277,12 +261,10 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Map
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
                 onMapLongClick = { latLng ->
-                    loadCategoriesAndCreators() // Refresh categories list when the dialog is opened
                     selectedLocation = latLng
                     showDialog = true
                 }
@@ -294,103 +276,89 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                     )
                 }
 
-                // Add markers for all filtered objects
                 filteredObjects.forEach { mapObject ->
+                    // Log to confirm correct position is used
+                    Log.d("MapsScreen", "Rendering Marker: ${mapObject.name}, Location: ${mapObject.location.latitude}, ${mapObject.location.longitude}")
+
+                    // Use mapObject.id with remember to retain individual marker states
+                    val markerState = remember(mapObject.id) {
+                        MarkerState(position = LatLng(mapObject.location.latitude, mapObject.location.longitude))
+                    }
+
                     Marker(
-                        state = rememberMarkerState(position = mapObject.location),
+                        state = markerState,
                         title = mapObject.name,
                         snippet = mapObject.description,
                         onClick = {
                             navController.navigate("objectDetails/${mapObject.id}")
                             true
                         },
-                        icon = bitmapDescriptorFromVector(context, mapObject.icon, 0.1f) // Adjust scale factor here
+                        icon = bitmapDescriptorFromVector(context, mapObject.icon, 0.1f)
                     )
                 }
             }
+
+
         }
     }
 
-    // Dialog to add a new object
     if (showDialog) {
         AddObjectDialog(
             currentLocation = selectedLocation ?: currentLocation,
             onDismiss = { showDialog = false },
-            onSave = { objectName, objectType, objectDescription, selectedIcon, imageUri ->
+            onSave = { objectName, category, objectDescription, selectedIcon, imageUri ->
                 if (selectedLocation != null) {
-                    // Save object to Firestore
                     val newObject = mapOf(
                         "name" to objectName,
-                        "type" to objectType,
                         "description" to objectDescription,
                         "location" to GeoPoint(selectedLocation!!.latitude, selectedLocation!!.longitude),
                         "icon" to selectedIcon,
                         "imageUri" to imageUri.toString(),
-                        "creatorId" to FirebaseAuth.getInstance().currentUser?.uid // Save the creator's UID
+                        "creatorId" to FirebaseAuth.getInstance().currentUser?.uid,
+                        "category" to category
                     )
                     firestore.collection("objects").add(newObject).addOnSuccessListener {
-                        // Refresh the mapObjects list to include the newly added object
                         scope.launch {
                             firestore.collection("objects").get().addOnSuccessListener { snapshot ->
                                 mapObjects = snapshot.documents.mapNotNull { document ->
                                     val geoPoint = document.getGeoPoint("location")
                                     val name = document.getString("name")
-                                    val type = document.getString("type")
                                     val description = document.getString("description")
                                     val icon = document.getLong("icon")?.toInt() ?: R.drawable.default_pin
                                     val imageUri = document.getString("imageUri")
                                     val creatorId = document.getString("creatorId")
-                                    if (geoPoint != null && name != null && type != null && description != null && creatorId != null) {
+                                    val category = document.getString("category").orEmpty()
+
+                                    if (geoPoint != null && name != null && description != null && creatorId != null) {
                                         MapObject(
                                             id = document.id,
                                             name = name,
-                                            type = type,
                                             description = description,
                                             location = LatLng(geoPoint.latitude, geoPoint.longitude),
                                             icon = icon,
                                             imageUri = imageUri,
-                                            creatorId = creatorId
+                                            creatorId = creatorId,
+                                            category = category
                                         )
                                     } else {
                                         null
                                     }
                                 }
-                                filteredObjects = mapObjects
+                                filteredObjects = mapObjects.sortedBy { it.category }
                             }
                         }
                         showDialog = false
-                    }.addOnFailureListener {
-                        // Handle failure
                     }
-                }
-            },
-            onAddCategory = { newCategory ->
-                // Add the new category to Firestore and to the local list
-                firestore.collection("categories").add(mapOf("name" to newCategory)).addOnSuccessListener {
-                    categories = categories + newCategory
-                    selectedCategory = newCategory
                 }
             }
         )
     }
 }
 
-data class MapObject(
-    val id: String,
-    val name: String,
-    val type: String,
-    val description: String,
-    val location: LatLng,
-    val icon: Int,
-    val imageUri: String? = null,
-    val creatorId: String // Add this field to store the creator's UID
-)
-
 fun bitmapDescriptorFromVector(context: Context, vectorResId: Int, scaleFactor: Float = 0.1f): BitmapDescriptor {
     val vectorDrawable = ContextCompat.getDrawable(context, vectorResId)
     vectorDrawable?.setBounds(0, 0, vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight)
 
-    // Create a bitmap with scaled dimensions
     val bitmap = Bitmap.createBitmap(
         (vectorDrawable!!.intrinsicWidth * scaleFactor).toInt(),
         (vectorDrawable.intrinsicHeight * scaleFactor).toInt(),
@@ -402,3 +370,4 @@ fun bitmapDescriptorFromVector(context: Context, vectorResId: Int, scaleFactor: 
     vectorDrawable.draw(canvas)
     return BitmapDescriptorFactory.fromBitmap(bitmap)
 }
+

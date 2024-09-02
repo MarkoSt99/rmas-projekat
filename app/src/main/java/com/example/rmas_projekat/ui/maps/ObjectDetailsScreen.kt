@@ -50,7 +50,7 @@ fun ObjectDetailsScreen(
             }
 
             // Display other details
-            Text("Type: ${mapObject.type}")
+            Text("Category: ${mapObject.category}")
             Text("Description: ${mapObject.description}")
 
             Spacer(modifier = Modifier.height(16.dp))
