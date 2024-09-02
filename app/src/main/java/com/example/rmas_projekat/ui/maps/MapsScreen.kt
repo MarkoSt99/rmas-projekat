@@ -6,15 +6,17 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.location.Location
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -61,6 +63,10 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
     var selectedCategory by remember { mutableStateOf("") }
     var selectedCreator by remember { mutableStateOf("") }
     var searchQuery by remember { mutableStateOf("") }
+
+    // Dropdown expanded states
+    var isCategoryDropdownExpanded by remember { mutableStateOf(false) }
+    var isCreatorDropdownExpanded by remember { mutableStateOf(false) }
 
     // Load categories and creators from Firestore
     fun loadCategoriesAndCreators() {
@@ -119,10 +125,35 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
         }
     }
 
+    // Camera position state
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(currentLocation ?: LatLng(0.0, 0.0), 15f)
     }
 
+    // Get current location
+    LaunchedEffect(locationPermissionState.allPermissionsGranted) {
+        if (locationPermissionState.allPermissionsGranted) {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                    location?.let {
+                        currentLocation = LatLng(it.latitude, it.longitude)
+                    }
+                }
+            }
+        } else {
+            locationPermissionState.launchMultiplePermissionRequest()
+        }
+    }
+
+    // Update camera position when the current location changes
     LaunchedEffect(currentLocation) {
         currentLocation?.let {
             cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 15f))
@@ -144,50 +175,107 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
         }
     ) { paddingValues ->
         Column(modifier = Modifier.padding(paddingValues)) {
-            // Filtering UI
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            // Search Bar in the first row
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Search Objects") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Category and Creator Dropdowns in the second row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 // Category Filter
-                DropdownMenu(
-                    expanded = true,
-                    onDismissRequest = { /* Dismiss logic */ }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("All Categories") },
-                        onClick = { selectedCategory = "" }
+                Box(modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = if (selectedCategory.isEmpty()) "All Categories" else selectedCategory,
+                        onValueChange = { /* No-op */ },
+                        label = { Text("Category") },
+                        modifier = Modifier
+                            .clickable { isCategoryDropdownExpanded = true },
+                        readOnly = true,
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Expand Categories"
+                            )
+                        }
                     )
-                    categories.forEach { category ->
+                    DropdownMenu(
+                        expanded = isCategoryDropdownExpanded,
+                        onDismissRequest = { isCategoryDropdownExpanded = false }
+                    ) {
                         DropdownMenuItem(
-                            text = { Text(category) },
-                            onClick = { selectedCategory = category }
+                            text = { Text("All Categories") },
+                            onClick = {
+                                selectedCategory = ""
+                                isCategoryDropdownExpanded = false
+                            }
                         )
+                        categories.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category) },
+                                onClick = {
+                                    selectedCategory = category
+                                    isCategoryDropdownExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // Creator Filter
-                DropdownMenu(
-                    expanded = true,
-                    onDismissRequest = { /* Dismiss logic */ }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("All Creators") },
-                        onClick = { selectedCreator = "" }
+                Box(modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = if (selectedCreator.isEmpty()) "All Creators" else selectedCreator,
+                        onValueChange = { /* No-op */ },
+                        label = { Text("Creator") },
+                        modifier = Modifier
+                            .clickable { isCreatorDropdownExpanded = true },
+                        readOnly = true,
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Expand Creators"
+                            )
+                        }
                     )
-                    creators.forEach { creator ->
+                    DropdownMenu(
+                        expanded = isCreatorDropdownExpanded,
+                        onDismissRequest = { isCreatorDropdownExpanded = false }
+                    ) {
                         DropdownMenuItem(
-                            text = { Text(creator) },
-                            onClick = { selectedCreator = creator }
+                            text = { Text("All Creators") },
+                            onClick = {
+                                selectedCreator = ""
+                                isCreatorDropdownExpanded = false
+                            }
                         )
+                        creators.forEach { creator ->
+                            DropdownMenuItem(
+                                text = { Text(creator) },
+                                onClick = {
+                                    selectedCreator = creator
+                                    isCreatorDropdownExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
-
-                // Search Bar
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    label = { Text("Search Objects") },
-                    modifier = Modifier.weight(1f)
-                )
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Map
             GoogleMap(
@@ -286,8 +374,6 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
         )
     }
 }
-
-
 
 data class MapObject(
     val id: String,
