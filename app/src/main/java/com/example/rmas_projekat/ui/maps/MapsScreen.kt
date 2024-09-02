@@ -55,58 +55,39 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
     var selectedLocation by remember { mutableStateOf<LatLng?>(null) }
     var showDialog by remember { mutableStateOf(false) }
     var mapObjects by remember { mutableStateOf(listOf<MapObject>()) }
+    var filteredObjects by remember { mutableStateOf(listOf<MapObject>()) }
     var categories by remember { mutableStateOf(listOf<String>()) } // Categories list
+    var creators by remember { mutableStateOf(listOf<String>()) } // Creators list
     var selectedCategory by remember { mutableStateOf("") }
+    var selectedCreator by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf("") }
 
-    // Load categories from Firestore
-    fun loadCategories() {
+    // Load categories and creators from Firestore
+    fun loadCategoriesAndCreators() {
         firestore.collection("categories").get().addOnSuccessListener { snapshot ->
-            val loadedCategories = snapshot.documents.mapNotNull { it.getString("name") }
-            categories = loadedCategories
-            if (categories.isNotEmpty()) {
-                selectedCategory = categories.first()
-            }
+            categories = snapshot.documents.mapNotNull { it.getString("name") }
+        }
+
+        firestore.collection("objects").get().addOnSuccessListener { snapshot ->
+            creators = snapshot.documents.mapNotNull { it.getString("creatorId") }.distinct()
         }
     }
 
-    // Initial category load
+    // Initial load
     LaunchedEffect(Unit) {
-        loadCategories()
+        loadCategoriesAndCreators()
     }
 
-    LaunchedEffect(locationPermissionState.allPermissionsGranted) {
-        if (locationPermissionState.allPermissionsGranted) {
-            if (ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-                    location?.let {
-                        currentLocation = LatLng(it.latitude, it.longitude)
-                    }
-                }
-            }
-        } else {
-            locationPermissionState.launchMultiplePermissionRequest()
+    // Apply filters whenever filter values change
+    LaunchedEffect(selectedCategory, selectedCreator, searchQuery) {
+        filteredObjects = mapObjects.filter {
+            (selectedCategory.isEmpty() || it.type == selectedCategory) &&
+                    (selectedCreator.isEmpty() || it.creatorId == selectedCreator) &&
+                    (searchQuery.isEmpty() || it.name.contains(searchQuery, ignoreCase = true))
         }
     }
 
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(currentLocation ?: LatLng(0.0, 0.0), 15f)
-    }
-
-    LaunchedEffect(currentLocation) {
-        currentLocation?.let {
-            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 15f))
-        }
-    }
-
-    // Listen to Firestore changes and update mapObjects
+    // Load objects from Firestore
     LaunchedEffect(Unit) {
         firestore.collection("objects").addSnapshotListener { snapshot, error ->
             if (error == null && snapshot != null) {
@@ -133,41 +114,25 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                         null
                     }
                 }
+                filteredObjects = mapObjects // Initially, show all objects
             }
         }
     }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && locationPermissionState.allPermissionsGranted) {
-                if (ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                    ) == PackageManager.PERMISSION_GRANTED ||
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-                        location?.let {
-                            currentLocation = LatLng(it.latitude, it.longitude)
-                        }
-                    }
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(currentLocation ?: LatLng(0.0, 0.0), 15f)
+    }
+
+    LaunchedEffect(currentLocation) {
+        currentLocation?.let {
+            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 15f))
         }
     }
 
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                loadCategories() // Refresh categories list when the dialog is opened
+                loadCategoriesAndCreators() // Refresh categories and creators when the dialog is opened
                 selectedLocation = currentLocation // Set the selected location to current location
                 showDialog = true
             }) {
@@ -178,12 +143,58 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
             BottomNavigationBar(navController = navController)
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
+        Column(modifier = Modifier.padding(paddingValues)) {
+            // Filtering UI
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                // Category Filter
+                DropdownMenu(
+                    expanded = true,
+                    onDismissRequest = { /* Dismiss logic */ }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("All Categories") },
+                        onClick = { selectedCategory = "" }
+                    )
+                    categories.forEach { category ->
+                        DropdownMenuItem(
+                            text = { Text(category) },
+                            onClick = { selectedCategory = category }
+                        )
+                    }
+                }
+
+                // Creator Filter
+                DropdownMenu(
+                    expanded = true,
+                    onDismissRequest = { /* Dismiss logic */ }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("All Creators") },
+                        onClick = { selectedCreator = "" }
+                    )
+                    creators.forEach { creator ->
+                        DropdownMenuItem(
+                            text = { Text(creator) },
+                            onClick = { selectedCreator = creator }
+                        )
+                    }
+                }
+
+                // Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text("Search Objects") },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // Map
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
                 onMapLongClick = { latLng ->
-                    loadCategories() // Refresh categories list when the dialog is opened
+                    loadCategoriesAndCreators() // Refresh categories list when the dialog is opened
                     selectedLocation = latLng
                     showDialog = true
                 }
@@ -195,8 +206,8 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                     )
                 }
 
-                // Add markers for all objects fetched from Firestore
-                mapObjects.forEach { mapObject ->
+                // Add markers for all filtered objects
+                filteredObjects.forEach { mapObject ->
                     Marker(
                         state = rememberMarkerState(position = mapObject.location),
                         title = mapObject.name,
@@ -256,6 +267,7 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                                         null
                                     }
                                 }
+                                filteredObjects = mapObjects
                             }
                         }
                         showDialog = false
@@ -274,6 +286,8 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
         )
     }
 }
+
+
 
 data class MapObject(
     val id: String,

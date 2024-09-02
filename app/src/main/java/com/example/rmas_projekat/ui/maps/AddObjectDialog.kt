@@ -179,8 +179,8 @@ fun AddObjectDialog(
                                             onAddCategory(newCategory)
                                         } else {
                                             Log.d("AddObjectDialog", "Category already exists: $newCategory")
-                                            onAddCategory(newCategory)
                                             selectedCategory = newCategory
+                                            onAddCategory(newCategory)
                                         }
                                         showAddCategoryDialog = false
                                     } catch (e: Exception) {
@@ -221,4 +221,3 @@ fun IconPicker(selectedIcon: Int, onIconSelected: (Int) -> Unit) {
         }
     }
 }
-
