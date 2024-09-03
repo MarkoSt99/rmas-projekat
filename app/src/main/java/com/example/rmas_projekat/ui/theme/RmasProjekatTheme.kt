@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple200,
+    primary = Color(0xFF08b0a1),
     secondary = Teal200,
     background = Color.Black,
     surface = Color.DarkGray,
@@ -17,7 +17,7 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple500,
+    primary = Color(0xFF08b0a1),
     secondary = Teal200,
     background = Color.White,
     surface = Color.White,

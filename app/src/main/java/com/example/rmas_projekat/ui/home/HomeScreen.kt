@@ -8,6 +8,12 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.rmas_projekat.ui.navigation.BottomNavigationBar
 import com.google.firebase.auth.FirebaseAuth
+import com.example.rmas_projekat.R
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 
 @Composable
 fun HomeScreen(navController: NavController, auth: FirebaseAuth) {
@@ -24,21 +30,56 @@ fun HomeScreen(navController: NavController, auth: FirebaseAuth) {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
         ) {
-            Text(text = "Welcome to the Home Screen")
+
+
+
+            Image(
+                painter = painterResource(id = R.drawable.home),
+                contentDescription = "Your Image",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Button(
-                onClick = {
-                    auth.signOut() // Sign out the user
-                    navController.navigate("login") {
-                        popUpTo("home") { inclusive = true } // Navigate to login and clear back stack
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                shape = MaterialTheme.shapes.medium,
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.Transparent
+                )
             ) {
-                Text("Logout")
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.0f)),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Bike Help is an app made for cyclists, that would help them with finding important objects during their rides.",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = MaterialTheme.typography.titleLarge.fontSize * 1.2f
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .padding(16.dp)
+                    )
+                }
             }
+
+
+
+
+
+
+
         }
     }
 }

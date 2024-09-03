@@ -17,8 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.auth.FirebaseAuth
@@ -48,7 +48,6 @@ fun EditProfileScreen(navController: NavController, auth: FirebaseAuth, storage:
         }
     }
 
-    // Image picker launcher
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
         onResult = { uri: Uri? -> imageUri = uri }
@@ -67,34 +66,37 @@ fun EditProfileScreen(navController: NavController, auth: FirebaseAuth, storage:
                 },
                 actions = {
                     Button(onClick = {
-                        coroutineScope.launch {
-                            // Save the updated information
-                            val userPhoto = imageUri
-                            user?.let {
-                                val profileUpdates = userProfileChangeRequest {
-                                    displayName = fullName
-                                }
-                                user.updateProfile(profileUpdates).await()
+                        if (fullName.isEmpty() || phoneNumber.isEmpty()) {
+                            Toast.makeText(context, "Please fill out all fields", Toast.LENGTH_SHORT).show()
+                        } else {
+                            coroutineScope.launch {
+                                // Save the updated information
+                                val userPhoto = imageUri
+                                user?.let {
+                                    val profileUpdates = userProfileChangeRequest {
+                                        displayName = fullName
+                                    }
+                                    user.updateProfile(profileUpdates).await()
 
-                                // Save the phone number and full name to Firestore
-                                firestore.collection("users").document(user.uid).update(
-                                    mapOf(
-                                        "phoneNumber" to phoneNumber,
-                                        "fullName" to fullName
-                                    )
-                                ).await()
+                                    firestore.collection("users").document(user.uid).update(
+                                        mapOf(
+                                            "phoneNumber" to phoneNumber,
+                                            "fullName" to fullName
+                                        )
+                                    ).await()
 
-                                userPhoto?.let { uri ->
-                                    val storageRef = storage.reference.child("userPhotos/${user.uid}.jpg")
-                                    storageRef.putFile(uri).addOnSuccessListener {
+                                    userPhoto?.let { uri ->
+                                        val storageRef = storage.reference.child("userPhotos/${user.uid}.jpg")
+                                        storageRef.putFile(uri).addOnSuccessListener {
+                                            Toast.makeText(context, "Profile Updated Successfully", Toast.LENGTH_SHORT).show()
+                                            navController.popBackStack()
+                                        }.addOnFailureListener {
+                                            Toast.makeText(context, "Failed to Update Photo", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } ?: run {
                                         Toast.makeText(context, "Profile Updated Successfully", Toast.LENGTH_SHORT).show()
                                         navController.popBackStack()
-                                    }.addOnFailureListener {
-                                        Toast.makeText(context, "Failed to Update Photo", Toast.LENGTH_SHORT).show()
                                     }
-                                } ?: run {
-                                    Toast.makeText(context, "Profile Updated Successfully", Toast.LENGTH_SHORT).show()
-                                    navController.popBackStack()
                                 }
                             }
                         }
@@ -104,11 +106,11 @@ fun EditProfileScreen(navController: NavController, auth: FirebaseAuth, storage:
                 }
             )
         }
-    ) {
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(it)
+                .padding(paddingValues)
                 .padding(16.dp),
             verticalArrangement = Arrangement.Top
         ) {
@@ -139,7 +141,6 @@ fun EditProfileScreen(navController: NavController, auth: FirebaseAuth, storage:
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Display current profile image
             if (imageUri != null) {
                 Image(
                     painter = rememberAsyncImagePainter(imageUri),
@@ -150,7 +151,6 @@ fun EditProfileScreen(navController: NavController, auth: FirebaseAuth, storage:
                     contentScale = ContentScale.Crop
                 )
             } else {
-                // Placeholder image if no image is chosen
                 Image(
                     painter = rememberAsyncImagePainter(user?.photoUrl),
                     contentDescription = "Profile Image",

@@ -1,59 +1,78 @@
 package com.example.rmas_projekat.ui.profile
 
+import com.example.rmas_projekat.ui.services.LocationService
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.runtime.*
 import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.rmas_projekat.R
 import com.example.rmas_projekat.ui.navigation.BottomNavigationBar
+import com.example.rmas_projekat.ui.services.LocationServiceViewModel
+import com.example.rmas_projekat.ui.services.LocationServiceViewModelFactory
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavController, auth: FirebaseAuth, storage: FirebaseStorage) {
-    val user = auth.currentUser
-    //val context = LocalContext.current
-    //val coroutineScope = rememberCoroutineScope()
+fun ProfileScreen(
+    navController: NavController,
+    auth: FirebaseAuth,
+    storage: FirebaseStorage
+) {
+    val context = LocalContext.current
+    val locationServiceViewModel: LocationServiceViewModel = viewModel(
+        factory = LocationServiceViewModelFactory(context)
+    )
 
-    // Mutable state to hold display name, phone number, and profile image URL
+    val user = auth.currentUser
+
     val displayName = remember { mutableStateOf("Unknown User") }
     val profileImageUrl = remember { mutableStateOf("") }
     val phoneNumber = remember { mutableStateOf("Unknown Number") }
 
-    // Fetch the profile image URL, display name, and phone number when the screen is displayed
+    val isLocationServiceEnabled by locationServiceViewModel.isLocationServiceEnabled.collectAsState()
+
+    LaunchedEffect(isLocationServiceEnabled) {
+        if (isLocationServiceEnabled) {
+            startLocationService(context)
+        } else {
+            stopLocationService(context)
+        }
+    }
+
     LaunchedEffect(user) {
         user?.let {
             val firestore = FirebaseFirestore.getInstance()
             val userDoc = firestore.collection("users").document(user.uid)
 
-            // Fetch user details from Firestore
             userDoc.get().addOnSuccessListener { document ->
                 if (document != null && document.exists()) {
                     displayName.value = document.getString("fullName") ?: "Unknown User"
                     phoneNumber.value = document.getString("phoneNumber") ?: "Unknown Number"
                 }
-            }.addOnFailureListener {
-                // Handle error if needed
             }
 
-            // Fetch the profile image URL from Firebase Storage
             val storageReference = storage.reference.child("userPhotos/${user.uid}.jpg")
             storageReference.downloadUrl.addOnSuccessListener { uri ->
                 profileImageUrl.value = uri.toString()
             }.addOnFailureListener {
-                profileImageUrl.value = "" // Optionally set a default image or leave empty
+                profileImageUrl.value = ""
             }
         }
     }
@@ -63,23 +82,36 @@ fun ProfileScreen(navController: NavController, auth: FirebaseAuth, storage: Fir
             TopAppBar(
                 title = { Text("Profile") },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        auth.signOut()
-                        navController.navigate("login") {
-                            popUpTo("profile") { inclusive = true }
-                        }
-                    }) {
+                    TextButton(
+                        onClick = {
+                            auth.signOut()
+                            navController.navigate("login") {
+                                popUpTo("profile") { inclusive = true }
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
                         Text("Sign Out")
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        navController.navigate("editProfile")
-                    }) {
+                    TextButton(
+                        onClick = {
+                            navController.navigate("editProfile")
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
                         Text("Edit")
                     }
                 }
             )
+
         },
         bottomBar = {
             BottomNavigationBar(navController = navController)
@@ -93,7 +125,6 @@ fun ProfileScreen(navController: NavController, auth: FirebaseAuth, storage: Fir
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Profile Image
             if (profileImageUrl.value.isNotEmpty()) {
                 Image(
                     painter = rememberAsyncImagePainter(profileImageUrl.value),
@@ -104,7 +135,6 @@ fun ProfileScreen(navController: NavController, auth: FirebaseAuth, storage: Fir
                     contentScale = ContentScale.Crop
                 )
             } else {
-                // Placeholder image
                 Image(
                     painter = painterResource(id = R.drawable.placeholder_profile),
                     contentDescription = "Profile Image",
@@ -117,7 +147,6 @@ fun ProfileScreen(navController: NavController, auth: FirebaseAuth, storage: Fir
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Display Name
             Text(
                 text = displayName.value,
                 style = MaterialTheme.typography.headlineSmall
@@ -125,7 +154,6 @@ fun ProfileScreen(navController: NavController, auth: FirebaseAuth, storage: Fir
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Phone Number
             Text(
                 text = "Phone: ${phoneNumber.value}",
                 style = MaterialTheme.typography.bodyMedium
@@ -133,7 +161,26 @@ fun ProfileScreen(navController: NavController, auth: FirebaseAuth, storage: Fir
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Space for further app development
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Location Service")
+                Spacer(modifier = Modifier.width(8.dp))
+                Switch(
+                    checked = isLocationServiceEnabled,
+                    onCheckedChange = { locationServiceViewModel.toggleLocationService() }
+                )
+            }
         }
     }
+}
+
+private fun startLocationService(context: Context) {
+    val serviceIntent = Intent(context, LocationService::class.java)
+    ContextCompat.startForegroundService(context, serviceIntent)
+}
+
+private fun stopLocationService(context: Context) {
+    val serviceIntent = Intent(context, LocationService::class.java)
+    context.stopService(serviceIntent)
 }

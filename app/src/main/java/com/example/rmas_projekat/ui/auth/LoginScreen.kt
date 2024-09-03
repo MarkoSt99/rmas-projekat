@@ -47,15 +47,25 @@ fun LoginScreen(navController: NavController, auth: FirebaseAuth) {
 
         Button(
             onClick = {
-                auth.signInWithEmailAndPassword(email, password)
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            Toast.makeText(context, "Login Successful", Toast.LENGTH_SHORT).show()
-                            navController.navigate("home") // Navigate to the home screen
-                        } else {
-                            Toast.makeText(context, "Login Failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
-                        }
+                when {
+                    email.isBlank() -> {
+                        Toast.makeText(context, "Please enter your email", Toast.LENGTH_SHORT).show()
                     }
+                    password.isBlank() -> {
+                        Toast.makeText(context, "Please enter your password", Toast.LENGTH_SHORT).show()
+                    }
+                    else -> {
+                        auth.signInWithEmailAndPassword(email, password)
+                            .addOnCompleteListener { task ->
+                                if (task.isSuccessful) {
+                                    Toast.makeText(context, "Login Successful", Toast.LENGTH_SHORT).show()
+                                    navController.navigate("home")
+                                } else {
+                                    Toast.makeText(context, "Login Failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                    }
+                }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -66,7 +76,7 @@ fun LoginScreen(navController: NavController, auth: FirebaseAuth) {
 
         Button(
             onClick = {
-                navController.navigate("register") // Navigate to login screen
+                navController.navigate("register")
             },
             modifier = Modifier.fillMaxWidth()
         ) {

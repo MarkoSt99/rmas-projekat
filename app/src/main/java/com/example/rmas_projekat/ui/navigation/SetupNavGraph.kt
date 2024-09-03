@@ -21,9 +21,14 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import java.text.SimpleDateFormat
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun SetupNavGraph(navController: NavHostController, auth: FirebaseAuth) {
+    val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
     NavHost(navController = navController, startDestination = "login") {
         composable("register") {
             RegisterScreen(navController = navController, auth = auth, storage = FirebaseStorage.getInstance())
@@ -37,11 +42,11 @@ fun SetupNavGraph(navController: NavHostController, auth: FirebaseAuth) {
         composable("maps") {
             MapsScreen(navController = navController, auth = auth)
         }
-        composable("record") {
-            RecordScreen(navController = navController, auth = auth)
+        composable("locations") {
+            LocationsScreen(navController = navController, auth = auth)
         }
-        composable("groups") {
-            GroupsScreen(navController = navController, auth = auth)
+        composable("leaderboard") {
+            LeaderboardScreen(navController = navController, auth = auth)
         }
         composable("profile") {
             ProfileScreen(navController = navController, auth = auth, storage = FirebaseStorage.getInstance())
@@ -52,9 +57,18 @@ fun SetupNavGraph(navController: NavHostController, auth: FirebaseAuth) {
         composable("objectDetails/{objectId}") { backStackEntry ->
             val objectId = backStackEntry.arguments?.getString("objectId")
             if (objectId != null) {
-                // Fetch the MapObject using objectId from Firestore and pass it to ObjectDetailsScreen
                 val firestore = FirebaseFirestore.getInstance()
                 val mapObject = remember { mutableStateOf<MapObject?>(null) }
+                val userMap = remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+
+                LaunchedEffect(Unit) {
+                    firestore.collection("users").get().addOnSuccessListener { snapshot ->
+                        val users = snapshot.documents.associate { document ->
+                            document.id to (document.getString("fullName") ?: "")
+                        }
+                        userMap.value = users
+                    }
+                }
 
                 LaunchedEffect(objectId) {
                     firestore.collection("objects").document(objectId).get().addOnSuccessListener { document ->
@@ -65,7 +79,9 @@ fun SetupNavGraph(navController: NavHostController, auth: FirebaseAuth) {
                             val icon = document.getLong("icon")?.toInt() ?: R.drawable.default_pin
                             val imageUri = document.getString("imageUri")
                             val creatorId = document.getString("creatorId") ?: ""
-                            val category = document.getString("category") ?: "" // Add this line
+                            val category = document.getString("category") ?: ""
+                            val ride = document.getBoolean("ride") ?: false
+                            val start = document.getString("start")?.let { formatter.parse(it) }
 
                             if (geoPoint != null) {
                                 mapObject.value = MapObject(
@@ -76,7 +92,10 @@ fun SetupNavGraph(navController: NavHostController, auth: FirebaseAuth) {
                                     icon = icon,
                                     imageUri = imageUri,
                                     creatorId = creatorId,
-                                    category = category // Add this line to the MapObject
+                                    category = category,
+                                    ride = ride,
+                                    start = start,
+                                    riders = document.get("riders") as? List<String> ?: listOf()
                                 )
                             }
                         }
@@ -84,13 +103,18 @@ fun SetupNavGraph(navController: NavHostController, auth: FirebaseAuth) {
                 }
 
                 mapObject.value?.let {
-                    ObjectDetailsScreen(mapObject = it, navController = navController, onDelete = {
-                        firestore.collection("objects").document(objectId).delete()
-                        navController.popBackStack()
-                    })
+                    ObjectDetailsScreen(
+                        mapObject = it,
+                        navController = navController,
+                        onDelete = {
+                            firestore.collection("objects").document(objectId).delete()
+                            navController.popBackStack()
+                        },
+                        userMap = userMap.value
+                    )
                 }
             }
         }
-
     }
 }
+

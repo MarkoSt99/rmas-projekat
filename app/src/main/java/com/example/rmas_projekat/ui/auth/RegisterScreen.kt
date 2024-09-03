@@ -21,7 +21,7 @@ import com.google.firebase.storage.FirebaseStorage
 
 @Composable
 fun RegisterScreen(navController: NavController, auth: FirebaseAuth, storage: FirebaseStorage) {
-    val firestore = FirebaseFirestore.getInstance() // Firestore instance
+    val firestore = FirebaseFirestore.getInstance()
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -31,7 +31,6 @@ fun RegisterScreen(navController: NavController, auth: FirebaseAuth, storage: Fi
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     val context = LocalContext.current
 
-    // Image picker launcher
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
         onResult = { uri: Uri? -> imageUri = uri }
@@ -101,73 +100,89 @@ fun RegisterScreen(navController: NavController, auth: FirebaseAuth, storage: Fi
 
         Button(
             onClick = {
-                if (password == confirmPassword) {
-                    val userPhoto = imageUri
-                    auth.createUserWithEmailAndPassword(email, password)
-                        .addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                val user = auth.currentUser
-                                val userId = user?.uid ?: ""
+                when {
+                    email.isBlank() -> {
+                        Toast.makeText(context, "Please enter your email", Toast.LENGTH_SHORT).show()
+                    }
+                    fullName.isBlank() -> {
+                        Toast.makeText(context, "Please enter your full name", Toast.LENGTH_SHORT).show()
+                    }
+                    phoneNumber.isBlank() -> {
+                        Toast.makeText(context, "Please enter your phone number", Toast.LENGTH_SHORT).show()
+                    }
+                    password.isBlank() -> {
+                        Toast.makeText(context, "Please enter your password", Toast.LENGTH_SHORT).show()
+                    }
+                    confirmPassword.isBlank() -> {
+                        Toast.makeText(context, "Please confirm your password", Toast.LENGTH_SHORT).show()
+                    }
+                    password != confirmPassword -> {
+                        Toast.makeText(context, "Passwords do not match", Toast.LENGTH_SHORT).show()
+                    }
+                    else -> {
+                        val userPhoto = imageUri
+                        auth.createUserWithEmailAndPassword(email, password)
+                            .addOnCompleteListener { task ->
+                                if (task.isSuccessful) {
+                                    val user = auth.currentUser
+                                    val userId = user?.uid ?: ""
 
-                                // Set the display name
-                                val profileUpdates = userProfileChangeRequest {
-                                    displayName = fullName
-                                }
-
-                                user?.updateProfile(profileUpdates)?.addOnCompleteListener { profileTask ->
-                                    if (profileTask.isSuccessful) {
-                                        // Upload the photo to Firebase Storage
-                                        val storageRef = storage.reference.child("userPhotos/$userId.jpg")
-                                        userPhoto?.let {
-                                            storageRef.putFile(it)
-                                                .addOnSuccessListener {
-                                                    // Save additional user data in Firestore
-                                                    val userData = hashMapOf(
-                                                        "fullName" to fullName,
-                                                        "phoneNumber" to phoneNumber,
-                                                        "email" to email,
-                                                        "photoUrl" to storageRef.path
-                                                    )
-                                                    firestore.collection("users").document(userId)
-                                                        .set(userData)
-                                                        .addOnSuccessListener {
-                                                            Toast.makeText(context, "Registration Successful", Toast.LENGTH_SHORT).show()
-                                                            navController.navigate("login")
-                                                        }
-                                                        .addOnFailureListener { e ->
-                                                            Toast.makeText(context, "Error saving user data: ${e.message}", Toast.LENGTH_SHORT).show()
-                                                        }
-                                                }
-                                                .addOnFailureListener {
-                                                    Toast.makeText(context, "Photo Upload Failed", Toast.LENGTH_SHORT).show()
-                                                }
-                                        } ?: run {
-                                            // Save additional user data without photo
-                                            val userData = hashMapOf(
-                                                "fullName" to fullName,
-                                                "phoneNumber" to phoneNumber,
-                                                "email" to email
-                                            )
-                                            firestore.collection("users").document(userId)
-                                                .set(userData)
-                                                .addOnSuccessListener {
-                                                    Toast.makeText(context, "Registration Successful", Toast.LENGTH_SHORT).show()
-                                                    navController.navigate("login")
-                                                }
-                                                .addOnFailureListener { e ->
-                                                    Toast.makeText(context, "Error saving user data: ${e.message}", Toast.LENGTH_SHORT).show()
-                                                }
-                                        }
-                                    } else {
-                                        Toast.makeText(context, "Failed to update profile: ${profileTask.exception?.message}", Toast.LENGTH_SHORT).show()
+                                    val profileUpdates = userProfileChangeRequest {
+                                        displayName = fullName
                                     }
+
+                                    user?.updateProfile(profileUpdates)?.addOnCompleteListener { profileTask ->
+                                        if (profileTask.isSuccessful) {
+                                            val storageRef = storage.reference.child("userPhotos/$userId.jpg")
+                                            userPhoto?.let {
+                                                storageRef.putFile(it)
+                                                    .addOnSuccessListener {
+                                                        val userData = hashMapOf(
+                                                            "fullName" to fullName,
+                                                            "phoneNumber" to phoneNumber,
+                                                            "email" to email,
+                                                            "photoUrl" to storageRef.path,
+                                                            "score" to 0
+                                                        )
+                                                        firestore.collection("users").document(userId)
+                                                            .set(userData)
+                                                            .addOnSuccessListener {
+                                                                Toast.makeText(context, "Registration Successful", Toast.LENGTH_SHORT).show()
+                                                                navController.navigate("login")
+                                                            }
+                                                            .addOnFailureListener { e ->
+                                                                Toast.makeText(context, "Error saving user data: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                            }
+                                                    }
+                                                    .addOnFailureListener {
+                                                        Toast.makeText(context, "Photo Upload Failed", Toast.LENGTH_SHORT).show()
+                                                    }
+                                            } ?: run {
+                                                val userData = hashMapOf(
+                                                    "fullName" to fullName,
+                                                    "phoneNumber" to phoneNumber,
+                                                    "email" to email,
+                                                    "score" to 0
+                                                )
+                                                firestore.collection("users").document(userId)
+                                                    .set(userData)
+                                                    .addOnSuccessListener {
+                                                        Toast.makeText(context, "Registration Successful", Toast.LENGTH_SHORT).show()
+                                                        navController.navigate("login")
+                                                    }
+                                                    .addOnFailureListener { e ->
+                                                        Toast.makeText(context, "Error saving user data: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                    }
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "Failed to update profile: ${profileTask.exception?.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Registration Failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                                 }
-                            } else {
-                                Toast.makeText(context, "Registration Failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                             }
-                        }
-                } else {
-                    Toast.makeText(context, "Passwords do not match", Toast.LENGTH_SHORT).show()
+                    }
                 }
             },
             modifier = Modifier.fillMaxWidth()
@@ -179,7 +194,7 @@ fun RegisterScreen(navController: NavController, auth: FirebaseAuth, storage: Fi
 
         Button(
             onClick = {
-                navController.navigate("login") // Navigate to login screen
+                navController.navigate("login")
             },
             modifier = Modifier.fillMaxWidth()
         ) {

@@ -2,6 +2,9 @@ package com.example.rmas_projekat.ui.maps
 
 import com.google.android.gms.maps.model.LatLng
 
+import java.time.LocalDateTime
+import java.util.Date
+
 data class MapObject(
     val id: String,
     val name: String,
@@ -10,5 +13,10 @@ data class MapObject(
     val icon: Int,
     val imageUri: String? = null,
     val creatorId: String,
-    val category: String // Add this field for the object's category
+    val category: String,
+    val ride: Boolean = false,
+    val start: Date? = null,
+    val riders: List<String> = listOf()
 )
+
+
