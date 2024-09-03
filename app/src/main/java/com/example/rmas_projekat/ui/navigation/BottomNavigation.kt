@@ -17,7 +17,7 @@ fun BottomNavigationBar(navController: NavController) {
     val items = listOf(
         BottomNavItem.Home,
         BottomNavItem.Maps,
-        BottomNavItem.Record,
+        BottomNavItem.Locations,
         BottomNavItem.Groups,
         BottomNavItem.Profile
     )
@@ -30,7 +30,13 @@ fun BottomNavigationBar(navController: NavController) {
         items.forEach { item ->
             BottomNavigationItem(
                 icon = { Icon(item.icon, contentDescription = item.title) },
-                label = { Text(item.title) },
+                label = {
+                    Text(
+                        item.title,
+                        maxLines = 1,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = MaterialTheme.typography.labelSmall.fontSize * 0.95) // Slightly smaller font
+                    )
+                },
                 selected = currentRoute == item.screenRoute,
                 onClick = {
                     navController.navigate(item.screenRoute) {

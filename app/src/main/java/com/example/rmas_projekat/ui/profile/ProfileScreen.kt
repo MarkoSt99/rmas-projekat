@@ -1,5 +1,8 @@
 package com.example.rmas_projekat.ui.profile
 
+import com.example.rmas_projekat.ui.services.LocationService
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -10,27 +13,51 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.rmas_projekat.R
 import com.example.rmas_projekat.ui.navigation.BottomNavigationBar
+import com.example.rmas_projekat.ui.services.LocationServiceViewModel
+import com.example.rmas_projekat.ui.services.LocationServiceViewModelFactory
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavController, auth: FirebaseAuth, storage: FirebaseStorage) {
+fun ProfileScreen(
+    navController: NavController,
+    auth: FirebaseAuth,
+    storage: FirebaseStorage
+) {
+    val context = LocalContext.current // Get the context
+    val locationServiceViewModel: LocationServiceViewModel = viewModel(
+        factory = LocationServiceViewModelFactory(context)
+    )
+
     val user = auth.currentUser
-    //val context = LocalContext.current
-    //val coroutineScope = rememberCoroutineScope()
 
     // Mutable state to hold display name, phone number, and profile image URL
     val displayName = remember { mutableStateOf("Unknown User") }
     val profileImageUrl = remember { mutableStateOf("") }
     val phoneNumber = remember { mutableStateOf("Unknown Number") }
+
+    // Observe the location service state
+    val isLocationServiceEnabled by locationServiceViewModel.isLocationServiceEnabled.collectAsState()
+
+    // Side effect to start/stop the location service based on toggle state
+    LaunchedEffect(isLocationServiceEnabled) {
+        if (isLocationServiceEnabled) {
+            startLocationService(context)
+        } else {
+            stopLocationService(context)
+        }
+    }
 
     // Fetch the profile image URL, display name, and phone number when the screen is displayed
     LaunchedEffect(user) {
@@ -133,7 +160,29 @@ fun ProfileScreen(navController: NavController, auth: FirebaseAuth, storage: Fir
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Space for further app development
+            // Location Service Toggle
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Location Service")
+                Spacer(modifier = Modifier.width(8.dp))
+                Switch(
+                    checked = isLocationServiceEnabled,
+                    onCheckedChange = { locationServiceViewModel.toggleLocationService() }
+                )
+            }
         }
     }
+}
+
+// Function to start the location service
+private fun startLocationService(context: Context) {
+    val serviceIntent = Intent(context, LocationService::class.java)
+    ContextCompat.startForegroundService(context, serviceIntent)
+}
+
+// Function to stop the location service
+private fun stopLocationService(context: Context) {
+    val serviceIntent = Intent(context, LocationService::class.java)
+    context.stopService(serviceIntent)
 }

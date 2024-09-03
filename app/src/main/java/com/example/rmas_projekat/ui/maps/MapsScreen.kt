@@ -32,6 +32,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +43,8 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
     val firestore = FirebaseFirestore.getInstance()
     val scope = rememberCoroutineScope()
+    val userMap = remember { mutableStateMapOf<String, String>() } // Map to store userId -> fullName
+    val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
 
     val locationPermissionState = rememberMultiplePermissionsState(
         permissions = listOf(
@@ -73,6 +78,8 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                     val imageUri = document.getString("imageUri")
                     val creatorId = document.getString("creatorId")
                     val category = document.getString("category").orEmpty()
+                    val ride = document.getBoolean("ride") ?: false
+                    val start = document.getString("start")?.let { formatter.parse(it) }
 
                     if (geoPoint != null && name != null && description != null && creatorId != null) {
                         MapObject(
@@ -83,7 +90,9 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                             icon = icon,
                             imageUri = imageUri,
                             creatorId = creatorId,
-                            category = category
+                            category = category,
+                            ride = ride,
+                            start = start
                         )
                     } else {
                         null
@@ -92,6 +101,26 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                 categories = mapObjects.map { it.category }.distinct()
                 creators = mapObjects.map { it.creatorId }.distinct()
                 filteredObjects = mapObjects.sortedBy { it.category }
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        firestore.collection("users").get().addOnSuccessListener { snapshot ->
+            if (snapshot != null) {
+                snapshot.documents.forEach { document ->
+                    val userId = document.id
+                    val fullName = document.getString("fullName")
+
+                    if (fullName != null) {
+                        userMap[userId] = fullName // Store fullName if it's not null
+                        Log.d("MapsScreen", "Mapped User: $userId -> $fullName")
+                    } else {
+                        Log.e("MapsScreen", "Missing fullName for userId: $userId")
+                    }
+                }
+            } else {
+                Log.e("MapsScreen", "Failed to fetch users")
             }
         }
     }
@@ -111,9 +140,6 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
             Log.d("MapsScreen", "Filtered Object: ${obj.name}, Category: ${obj.category}, Location: ${obj.location.latitude}, ${obj.location.longitude}")
         }
     }
-
-
-
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(currentLocation ?: LatLng(0.0, 0.0), 15f)
@@ -213,7 +239,6 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                                     Log.d("MapsScreen", "Selected Category: $selectedCategory")
                                 }
                             )
-
                         }
                     }
                 }
@@ -225,8 +250,14 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                     onExpandedChange = { isCreatorDropdownExpanded = !isCreatorDropdownExpanded },
                     modifier = Modifier.weight(1f)
                 ) {
+                    val selectedFullName = if (selectedCreator.isNotEmpty()) {
+                        userMap[selectedCreator] ?: "All Creators"
+                    } else {
+                        "All Creators"
+                    }
+
                     OutlinedTextField(
-                        value = selectedCreator.ifEmpty { "All Creators" },
+                        value = selectedFullName,
                         onValueChange = { /* No-op */ },
                         label = { Text("Creator") },
                         readOnly = true,
@@ -246,12 +277,14 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                                 isCreatorDropdownExpanded = false
                             }
                         )
-                        creators.forEach { creator ->
+                        creators.forEach { creatorId ->
+                            val fullName = userMap[creatorId] ?: creatorId
                             DropdownMenuItem(
-                                text = { Text(creator) },
+                                text = { Text(fullName) },
                                 onClick = {
-                                    selectedCreator = creator
+                                    selectedCreator = creatorId
                                     isCreatorDropdownExpanded = false
+                                    Log.d("MapsScreen", "Selected Creator: $fullName ($creatorId)")
                                 }
                             )
                         }
@@ -280,7 +313,6 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                     // Log to confirm correct position is used
                     Log.d("MapsScreen", "Rendering Marker: ${mapObject.name}, Location: ${mapObject.location.latitude}, ${mapObject.location.longitude}")
 
-                    // Use mapObject.id with remember to retain individual marker states
                     val markerState = remember(mapObject.id) {
                         MarkerState(position = LatLng(mapObject.location.latitude, mapObject.location.longitude))
                     }
@@ -297,8 +329,6 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                     )
                 }
             }
-
-
         }
     }
 
@@ -306,17 +336,24 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
         AddObjectDialog(
             currentLocation = selectedLocation ?: currentLocation,
             onDismiss = { showDialog = false },
-            onSave = { objectName, category, objectDescription, selectedIcon, imageUri ->
+            onSave = { objectName, category, objectDescription, selectedIcon, imageUri, isRide, start ->
                 if (selectedLocation != null) {
-                    val newObject = mapOf(
+                    val newObject = mutableMapOf(
                         "name" to objectName,
                         "description" to objectDescription,
                         "location" to GeoPoint(selectedLocation!!.latitude, selectedLocation!!.longitude),
                         "icon" to selectedIcon,
                         "imageUri" to imageUri.toString(),
                         "creatorId" to FirebaseAuth.getInstance().currentUser?.uid,
-                        "category" to category
+                        "category" to category,
+                        "ride" to isRide
                     )
+
+                    // Add start time only if it's not null
+                    if (start != null) {
+                        newObject["start"] = formatter.format(start)
+                    }
+
                     firestore.collection("objects").add(newObject).addOnSuccessListener {
                         scope.launch {
                             firestore.collection("objects").get().addOnSuccessListener { snapshot ->
@@ -328,6 +365,8 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                                     val imageUri = document.getString("imageUri")
                                     val creatorId = document.getString("creatorId")
                                     val category = document.getString("category").orEmpty()
+                                    val ride = document.getBoolean("ride") ?: false
+                                    val startDate = document.getString("start")?.let { formatter.parse(it) }
 
                                     if (geoPoint != null && name != null && description != null && creatorId != null) {
                                         MapObject(
@@ -338,7 +377,9 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                                             icon = icon,
                                             imageUri = imageUri,
                                             creatorId = creatorId,
-                                            category = category
+                                            category = category,
+                                            ride = ride,
+                                            start = startDate
                                         )
                                     } else {
                                         null
@@ -353,6 +394,7 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
             }
         )
     }
+
 }
 
 fun bitmapDescriptorFromVector(context: Context, vectorResId: Int, scaleFactor: Float = 0.1f): BitmapDescriptor {
@@ -370,4 +412,3 @@ fun bitmapDescriptorFromVector(context: Context, vectorResId: Int, scaleFactor: 
     vectorDrawable.draw(canvas)
     return BitmapDescriptorFactory.fromBitmap(bitmap)
 }
-

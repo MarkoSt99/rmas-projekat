@@ -11,7 +11,7 @@ sealed class BottomNavItem(
 ) {
     object Home : BottomNavItem("Home", Icons.Filled.Home, "home")
     object Maps : BottomNavItem("Maps", Icons.Filled.Map, "maps")
-    object Record : BottomNavItem("Record", Icons.Filled.Mic, "record")
+    object Locations : BottomNavItem("Locations", Icons.Filled.LocationOn, "locations")
     object Groups : BottomNavItem("Groups", Icons.Filled.Group, "groups")
     object Profile : BottomNavItem("Profile", Icons.Filled.Person, "profile")
 }

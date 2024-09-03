@@ -80,6 +80,7 @@ dependencies {
     implementation(libs.firebase.firestore.ktx)
 
     implementation(libs.androidx.material.icons.extended)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
 
     // Image loading library
     implementation(libs.coil.compose)
