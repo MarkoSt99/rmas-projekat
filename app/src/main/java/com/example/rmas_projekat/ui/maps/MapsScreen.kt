@@ -285,15 +285,15 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                     modifier = Modifier.weight(1f)
                 ) {
                     val selectedFullName = if (selectedCreator.isNotEmpty()) {
-                        userMap[selectedCreator] ?: "All Creators"
+                        userMap[selectedCreator] ?: "All Riders"
                     } else {
-                        "All Creators"
+                        "All Riders"
                     }
 
                     OutlinedTextField(
                         value = selectedFullName,
                         onValueChange = { /* No-op */ },
-                        label = { Text("Creator") },
+                        label = { Text("Rider") },
                         readOnly = true,
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCreatorDropdownExpanded)
@@ -305,7 +305,7 @@ fun MapsScreen(navController: NavController, auth: FirebaseAuth) {
                         onDismissRequest = { isCreatorDropdownExpanded = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("All Creators") },
+                            text = { Text("All Riders") },
                             onClick = {
                                 selectedCreator = ""
                                 isCreatorDropdownExpanded = false

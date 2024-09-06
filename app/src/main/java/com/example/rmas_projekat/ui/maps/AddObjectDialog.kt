@@ -175,7 +175,7 @@ fun AddObjectDialog(
 
 @Composable
 fun IconPicker(selectedIcon: Int, onIconSelected: (Int) -> Unit) {
-    val icons = listOf(R.drawable.food, R.drawable.service_center, R.drawable.water, R.drawable.shop)
+    val icons = listOf(R.drawable.food, R.drawable.service_center, R.drawable.water, R.drawable.shop, R.drawable.bike, R.drawable.help)
     Row(horizontalArrangement = Arrangement.SpaceAround) {
         icons.forEach { icon ->
             IconButton(onClick = { onIconSelected(icon) }) {
